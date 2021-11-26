@@ -37,7 +37,6 @@ namespace HangfireJobHandler
             return false;
         }
 
-        [ContinuationsSupportIncludingFailedState]
         public async Task DeleteJobFromQueueAsync(string jobId)
         {
             string command = $@"DELETE FROM [{Environment.GetEnvironmentVariable("HANGFIRE_SCHEMA")}].[{Environment.GetEnvironmentVariable("HANGFIRE_JOB_TABLE")}]
