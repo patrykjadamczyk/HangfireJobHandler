@@ -13,4 +13,8 @@ Be sure to provide correct connectionstring with all required user rights to mai
 `HANGFIRE_JOB_TABLE` - Hangfire job table where the job identifiers will be stored.</br>
 ## 2. Queue
 This library is using the queue named `handler` - it needs to be inserted into the Hangfire queue settings.
+## 3. ContinuationsSupportIncludingFailedStateAttribute
+Out of the box, Hangfire method `ContinueJobWith()` doesn't apply to `Failed` jobs 
+- decorating the background job method with this attribute allows to extend the `ContinueJobWith` execution also to `Failed` jobs
+so they will be also removed from the handler job table and not blocking incoming jobs with same identifier.
 
