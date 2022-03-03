@@ -1,6 +1,5 @@
 ﻿using Dapper;
 using Hangfire;
-using HangfireJobHandler.Attributes;
 using Serilog;
 using System;
 using System.Data.SqlClient;

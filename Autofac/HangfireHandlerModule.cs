@@ -2,12 +2,15 @@
 using Dapper;
 using System;
 using System.Data.SqlClient;
+using System.Threading;
 
 namespace HangfireJobHandler.Autofac
 {
     public class HangfireHandlerModule : Module
     {
-        readonly string SqlString = $@"IF NOT EXISTS (SELECT * 
+        readonly string CheckDbSql = @$"SELECT * FROM sys.databases WHERE name = '{Environment.GetEnvironmentVariable("HANGFIRE_DATABASE")}'";
+
+        readonly string ValidateTableSql = $@"IF NOT EXISTS (SELECT * 
                     FROM INFORMATION_SCHEMA.TABLES 
                     WHERE TABLE_SCHEMA = '{Environment.GetEnvironmentVariable("HANGFIRE_SCHEMA")}' 
                     AND TABLE_NAME = '{Environment.GetEnvironmentVariable("HANGFIRE_JOB_TABLE")}')
@@ -27,9 +30,17 @@ namespace HangfireJobHandler.Autofac
                     END";
         protected override void Load(ContainerBuilder builder)
         {
+            using (var connection = new SqlConnection($"{Environment.GetEnvironmentVariable("SQL_CONNECTIONSTRING")};database=master;"))
+            {
+                while (connection.QuerySingle(CheckDbSql) < 1)
+                {
+                    Console.WriteLine($"Database {Environment.GetEnvironmentVariable("HANGFIRE_DATABASE")} not found, waiting 10 seconds to retry...");
+                    Thread.Sleep(10000);
+                }
+            }
             using (var connection = new SqlConnection($"{Environment.GetEnvironmentVariable("SQL_CONNECTIONSTRING")};database={Environment.GetEnvironmentVariable("HANGFIRE_DATABASE")};"))
             {
-                connection.Execute(SqlString);
+                connection.Execute(ValidateTableSql);
             }
 
             builder.RegisterType<JobHandler>().As<IJobHandler>().SingleInstance();
