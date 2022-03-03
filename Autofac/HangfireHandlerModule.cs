@@ -3,12 +3,17 @@ using Dapper;
 using System;
 using System.Data.SqlClient;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace HangfireJobHandler.Autofac
 {
     public class HangfireHandlerModule : Module
     {
-        readonly string CheckDbSql = @$"SELECT * FROM sys.databases WHERE name = '{Environment.GetEnvironmentVariable("HANGFIRE_DATABASE")}'";
+        readonly string CheckDbSql = @$"SELECT COUNT(1) FROM sys.databases WHERE name = '{Environment.GetEnvironmentVariable("HANGFIRE_DATABASE")}'";
+
+        readonly string ValidateSchemaSql = $@"SELECT COUNT(1) 
+                    FROM INFORMATION_SCHEMA.TABLES 
+                    WHERE TABLE_SCHEMA = '{Environment.GetEnvironmentVariable("HANGFIRE_SCHEMA")}'";
 
         readonly string ValidateTableSql = $@"IF NOT EXISTS (SELECT * 
                     FROM INFORMATION_SCHEMA.TABLES 
@@ -30,9 +35,15 @@ namespace HangfireJobHandler.Autofac
                     END";
         protected override void Load(ContainerBuilder builder)
         {
+            Task.Run(() => ValidateDatabase());
+            builder.RegisterType<JobHandler>().As<IJobHandler>().SingleInstance();
+        }
+
+        private void ValidateDatabase()
+        {
             using (var connection = new SqlConnection($"{Environment.GetEnvironmentVariable("SQL_CONNECTIONSTRING")};database=master;"))
             {
-                while (connection.QuerySingle(CheckDbSql) < 1)
+                while (connection.QuerySingle<int>(CheckDbSql) < 1)
                 {
                     Console.WriteLine($"Database {Environment.GetEnvironmentVariable("HANGFIRE_DATABASE")} not found, waiting 10 seconds to retry...");
                     Thread.Sleep(10000);
@@ -40,10 +51,13 @@ namespace HangfireJobHandler.Autofac
             }
             using (var connection = new SqlConnection($"{Environment.GetEnvironmentVariable("SQL_CONNECTIONSTRING")};database={Environment.GetEnvironmentVariable("HANGFIRE_DATABASE")};"))
             {
+                while (connection.QuerySingle<int>(ValidateSchemaSql) < 1)
+                {
+                    Console.WriteLine($"Schema {Environment.GetEnvironmentVariable("HANGFIRE_SCHEMA")} not found, waiting 10 seconds to retry...");
+                    Thread.Sleep(10000);
+                }
                 connection.Execute(ValidateTableSql);
             }
-
-            builder.RegisterType<JobHandler>().As<IJobHandler>().SingleInstance();
         }
     }
 }
