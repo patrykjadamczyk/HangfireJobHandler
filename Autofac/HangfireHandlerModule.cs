@@ -24,6 +24,7 @@ namespace HangfireJobHandler.Autofac
                             [Id] [bigint] IDENTITY(1,1) NOT NULL,
                             [CreatedAt] [datetime] NOT NULL,
                             [JobId] [varchar](40) NOT NULL,
+                            [JobRef] [varchar](40) NOT NULL,
                             CONSTRAINT [PK_{Environment.GetEnvironmentVariable("HANGFIRE_JOB_TABLE")}_Job] PRIMARY KEY CLUSTERED 
                             (
 	                            [Id] ASC

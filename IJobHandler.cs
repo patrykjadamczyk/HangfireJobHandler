@@ -5,6 +5,6 @@ namespace HangfireJobHandler
     public interface IJobHandler
     {
         Task DeleteJobFromQueueAsync(string jobId);
-        Task<bool> TryEnqueueJobAsync(string jobId);
+        Task<bool> TryEnqueueJobAsync(string jobId, string jobRef = null);
     }
 }

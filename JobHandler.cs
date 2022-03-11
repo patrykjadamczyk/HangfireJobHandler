@@ -16,7 +16,7 @@ namespace HangfireJobHandler
         {
             _logger = logger;
         }
-        public async Task<bool> TryEnqueueJobAsync(string jobId)
+        public async Task<bool> TryEnqueueJobAsync(string jobId, string jobRef)
         {
             string query = $@"SELECT COUNT(1)
                 FROM [{Environment.GetEnvironmentVariable("HANGFIRE_SCHEMA")}].[{Environment.GetEnvironmentVariable("HANGFIRE_JOB_TABLE")}]
@@ -26,8 +26,8 @@ namespace HangfireJobHandler
                 int count = await connection.ExecuteScalarAsync<int>(query);
                 if(count == 0)
                 {
-                    string command = $@"INSERT INTO [{Environment.GetEnvironmentVariable("HANGFIRE_SCHEMA")}].[{Environment.GetEnvironmentVariable("HANGFIRE_JOB_TABLE")}] (JobId)
-                    VALUES ('{jobId}')";
+                    string command = $@"INSERT INTO [{Environment.GetEnvironmentVariable("HANGFIRE_SCHEMA")}].[{Environment.GetEnvironmentVariable("HANGFIRE_JOB_TABLE")}] (JobId, JobRef)
+                    VALUES ('{jobId}', '{jobRef}')";
                     await connection.ExecuteAsync(command);
                     return true;
                 }
