@@ -3,6 +3,7 @@ using Hangfire;
 using Serilog;
 using System;
 using System.Data.SqlClient;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 namespace HangfireJobHandler
@@ -16,7 +17,7 @@ namespace HangfireJobHandler
         {
             _logger = logger;
         }
-        public async Task<bool> TryEnqueueJobAsync(string jobId)
+        public async Task<bool> TryEnqueueJobAsync(string jobId, Expression<Func<Task>> expression)
         {
             string query = $@"SELECT COUNT(1)
                 FROM [{Environment.GetEnvironmentVariable("HANGFIRE_SCHEMA")}].[{Environment.GetEnvironmentVariable("HANGFIRE_JOB_TABLE")}]
@@ -26,9 +27,11 @@ namespace HangfireJobHandler
                 int count = await connection.ExecuteScalarAsync<int>(query);
                 if(count == 0)
                 {
-                    string command = $@"INSERT INTO [{Environment.GetEnvironmentVariable("HANGFIRE_SCHEMA")}].[{Environment.GetEnvironmentVariable("HANGFIRE_JOB_TABLE")}] (JobId)
-                    VALUES ('{jobId}')";
-                    await connection.ExecuteAsync(command);
+                    string result = BackgroundJob.Enqueue(expression);
+                    string command = $@"INSERT INTO [{Environment.GetEnvironmentVariable("HANGFIRE_SCHEMA")}].[{Environment.GetEnvironmentVariable("HANGFIRE_JOB_TABLE")}] (JobId, JobRef)
+                    VALUES ('{jobId}', '{result}')";
+                    BackgroundJob.ContinueJobWith(result, () => DeleteJobFromQueueAsync(jobId), JobContinuationOptions.OnAnyFinishedState);
+                    await connection.ExecuteAsync(command, commandTimeout: 60);
                     return true;
                 }
             }
@@ -42,7 +45,7 @@ namespace HangfireJobHandler
                                 WHERE JobId = '{jobId}'";
             using (var connection = new SqlConnection($"{Environment.GetEnvironmentVariable("SQL_CONNECTIONSTRING")};database={Environment.GetEnvironmentVariable("HANGFIRE_DATABASE")};"))
             {
-                await connection.ExecuteAsync(command);
+                await connection.ExecuteAsync(command, commandTimeout: 60);
             }
         }
     }
