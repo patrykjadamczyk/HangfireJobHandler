@@ -2,7 +2,7 @@
 
 on:
   push:
-    branches: [ master, issue-x/github-packages ]
+    branches: [ master ]
 
 jobs:
   build:
